@@ -124,6 +124,14 @@ app.get('/api/games/:code/role/:playerId', (req, res) => {
   res.json({ name: player.name, role: player.role, alive: player.alive });
 });
 
+// Trigger howl
+app.post('/api/games/:code/howl', (req, res) => {
+  const game = games[req.params.code.toUpperCase()];
+  if (!game) return res.status(404).json({ error: 'Game not found' });
+  game.howlAt = Date.now();
+  res.json({ ok: true });
+});
+
 // Get game state (moderator view - shows all roles; player view - hides roles)
 app.get('/api/games/:code', (req, res) => {
   const game = games[req.params.code.toUpperCase()];
@@ -136,7 +144,7 @@ app.get('/api/games/:code', (req, res) => {
     alive: p.alive,
     role: isMod ? p.role : undefined
   }));
-  res.json({ code: game.code, started: game.started, players });
+  res.json({ code: game.code, started: game.started, players, howlAt: game.howlAt || 0 });
 });
 
 // Eliminate player

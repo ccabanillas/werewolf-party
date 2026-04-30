@@ -18,6 +18,11 @@
     .container { max-width: 420px; width: 100%; }
     h1 { text-align: center; font-size: 2rem; margin: 20px 0 10px; }
     .kcl-logo { display: block; margin: 10px auto; width: 80px; height: 80px; border-radius: 16px; }
+    .btn-howl {
+      background: #2a1a3e; color: #c9a0ff; border: 2px solid #7b68ee;
+      font-size: 1.3rem; letter-spacing: 0.05em;
+    }
+    .btn-howl:active { background: #7b68ee; color: white; }
     .subtitle { text-align: center; color: #888; margin-bottom: 30px; font-size: 0.9rem; }
     .screen { display: none; }
     .screen.active { display: block; }
@@ -124,7 +129,7 @@
       <div class="divider">- or -</div>
       <input class="code-input" id="joinCode" placeholder="CODE" maxlength="4" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false">
       <input id="joinName" placeholder="Your name" autocomplete="off">
-      <button class="btn-secondary" onclick="joinGame()">Join Game</button>
+      <button class="btn-secondary" onclick="ensureAudio(); joinGame()">Join Game</button>
       <p id="homeError" class="error"></p>
     </div>
 
@@ -155,6 +160,7 @@
       <p class="subtitle">Tap to eliminate/revive. Long-press to kick.</p>
       <ul class="player-list" id="modPlayers"></ul>
       <div class="actions">
+        <button class="btn-howl" onclick="triggerHowl()">AWOOOO!</button>
         <button class="btn-danger" onclick="resetGame()">New Round (Keep Players)</button>
       </div>
     </div>
@@ -189,6 +195,75 @@
     let pollTimer = null;
     let roleCounts = { Werewolf: 1, Seer: 1, Witch: 1, Villager: 0 };
     let currentPlayerCount = 0;
+    let lastHowlAt = 0;
+    let audioCtx = null;
+
+    function ensureAudio() {
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+    }
+
+    function playHowl() {
+      ensureAudio();
+      const ctx = audioCtx;
+      const now = ctx.currentTime;
+
+      // Main howl tone — rising then falling
+      const osc1 = ctx.createOscillator();
+      const gain1 = ctx.createGain();
+      osc1.type = 'sine';
+      osc1.frequency.setValueAtTime(200, now);
+      osc1.frequency.linearRampToValueAtTime(500, now + 0.8);
+      osc1.frequency.linearRampToValueAtTime(550, now + 1.5);
+      osc1.frequency.linearRampToValueAtTime(300, now + 2.5);
+      osc1.frequency.linearRampToValueAtTime(150, now + 3.0);
+      gain1.gain.setValueAtTime(0, now);
+      gain1.gain.linearRampToValueAtTime(0.4, now + 0.3);
+      gain1.gain.setValueAtTime(0.4, now + 1.5);
+      gain1.gain.linearRampToValueAtTime(0, now + 3.0);
+      osc1.connect(gain1).connect(ctx.destination);
+      osc1.start(now);
+      osc1.stop(now + 3.0);
+
+      // Vibrato layer
+      const osc2 = ctx.createOscillator();
+      const gain2 = ctx.createGain();
+      osc2.type = 'sine';
+      osc2.frequency.setValueAtTime(205, now);
+      osc2.frequency.linearRampToValueAtTime(510, now + 0.8);
+      osc2.frequency.linearRampToValueAtTime(555, now + 1.5);
+      osc2.frequency.linearRampToValueAtTime(305, now + 2.5);
+      osc2.frequency.linearRampToValueAtTime(155, now + 3.0);
+      gain2.gain.setValueAtTime(0, now);
+      gain2.gain.linearRampToValueAtTime(0.2, now + 0.3);
+      gain2.gain.setValueAtTime(0.2, now + 1.5);
+      gain2.gain.linearRampToValueAtTime(0, now + 3.0);
+      osc2.connect(gain2).connect(ctx.destination);
+      osc2.start(now);
+      osc2.stop(now + 3.0);
+
+      // Eerie high harmonic
+      const osc3 = ctx.createOscillator();
+      const gain3 = ctx.createGain();
+      osc3.type = 'triangle';
+      osc3.frequency.setValueAtTime(600, now);
+      osc3.frequency.linearRampToValueAtTime(1100, now + 0.8);
+      osc3.frequency.linearRampToValueAtTime(1150, now + 1.5);
+      osc3.frequency.linearRampToValueAtTime(700, now + 2.5);
+      gain3.gain.setValueAtTime(0, now);
+      gain3.gain.linearRampToValueAtTime(0.08, now + 0.5);
+      gain3.gain.linearRampToValueAtTime(0, now + 3.0);
+      osc3.connect(gain3).connect(ctx.destination);
+      osc3.start(now);
+      osc3.stop(now + 3.0);
+    }
+
+    async function triggerHowl() {
+      try {
+        await api(`/games/${state.gameCode}/howl`, { method: 'POST' });
+        playHowl();
+      } catch (e) { alert(e.message); }
+    }
 
     const roleDescriptions = {
       Werewolf: 'Each night, you and your fellow werewolves choose a victim. Stay hidden!',
@@ -596,13 +671,22 @@
       document.getElementById('eliminatedBanner').style.display = data.alive ? 'none' : 'block';
     }
 
+    async function checkHowl() {
+      try {
+        const game = await api(`/games/${state.gameCode}`);
+        if (game.howlAt && game.howlAt > lastHowlAt) {
+          lastHowlAt = game.howlAt;
+          playHowl();
+        }
+      } catch (e) {}
+    }
+
     function pollPlayerRole() {
       clearInterval(pollTimer);
       pollTimer = setInterval(async () => {
         try {
           const data = await api(`/games/${state.gameCode}/role/${state.playerId}`);
           if (!data.role) {
-            // Game was reset
             document.getElementById('waitGameCode').textContent = state.gameCode;
             showScreen('playerWaiting');
             clearInterval(pollTimer);
@@ -610,6 +694,7 @@
             return;
           }
           renderPlayerRole(data);
+          checkHowl();
         } catch (e) {
             if (e.message === 'Player not found') {
               clearInterval(pollTimer);
