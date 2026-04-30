@@ -103,6 +103,10 @@
     }
     .role-total.match { color: #2ecc71; background: #1a2e1a; }
     .role-total.mismatch { color: #e94560; background: #2e1a1a; }
+    .ascii-art {
+      font-family: 'Courier New', monospace; font-size: 0.7rem; line-height: 1.15;
+      margin: 0 auto 12px; display: inline-block; text-align: left;
+    }
   </style>
 </head>
 <body>
@@ -163,6 +167,7 @@
     <div id="playerRole" class="screen">
       <h1>Your Role</h1>
       <div class="role-reveal">
+        <pre class="ascii-art" id="roleArt"></pre>
         <div class="player-name" id="roleName"></div>
         <div class="role-name" id="roleTitle"></div>
         <div class="role-desc" id="roleDesc"></div>
@@ -188,6 +193,64 @@
     };
 
     const roleColors = { Werewolf: '#e94560', Seer: '#7b68ee', Doctor: '#2ecc71', Villager: '#888' };
+
+    const roleArt = {
+      Werewolf: `
+         /\\_/\\
+        / o o \\
+       (   "   )
+        \\  -  /
+     /\\/ )   ( \\/\\
+    / /  |   |  \\ \\
+   ( (   |   |   ) )
+    \\_)  |   |  (_/
+         |   |
+    ~~~~~|   |~~~~~
+      ~~ |   | ~~
+         \\___/`,
+      Seer: `
+        .---.
+       / o o \\
+       \\ /_\\ /
+        \\   /
+     ____) (____
+    /   _   _   \\
+   | .'   |   '. |
+   | |  (o o)  | |
+   | '.  \\=/  .' |
+    \\   '---'   /
+     '---------'
+    ~ all seeing ~`,
+      Doctor: `
+        .---.
+       / o o \\
+       \\  ^  /
+        \\   /
+     ____) (____
+    |     +     |
+    |    +++    |
+    |     +     |
+    |           |
+    |   MEDIC   |
+    |___________|
+        |   |
+        '---'`,
+      Villager: `
+        .---.
+       / o o \\
+       \\  ~  /
+        \\   /
+     ____) (____
+    /           \\
+   |   /     \\   |
+   |  | JUST  |  |
+   |  | A     |  |
+   |  | GUY   |  |
+    \\ |       | /
+     '|_______|'
+        |   |
+        '---'`
+    };
 
     async function api(path, opts = {}) {
       const res = await fetch('/api' + path, {
@@ -454,6 +517,9 @@
     }
 
     function renderPlayerRole(data) {
+      const art = document.getElementById('roleArt');
+      art.textContent = roleArt[data.role] || '';
+      art.style.color = roleColors[data.role] || '#aaa';
       document.getElementById('roleName').textContent = data.name;
       const title = document.getElementById('roleTitle');
       title.textContent = data.role;
