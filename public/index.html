@@ -108,12 +108,14 @@
           Need at least 4 players
         </button>
       </div>
+      <div class="divider">Tap a player to remove them</div>
     </div>
 
     <!-- MODERATOR GAME -->
     <div id="modGame" class="screen">
       <h1>Game On</h1>
       <div class="game-code" id="modGameCode" style="font-size:1.5rem"></div>
+      <p class="subtitle">Tap to eliminate/revive. Long-press to kick.</p>
       <ul class="player-list" id="modPlayers"></ul>
       <div class="actions">
         <button class="btn-danger" onclick="resetGame()">New Round (Keep Players)</button>
@@ -192,12 +194,22 @@
         return;
       }
       try {
-        const { playerId, gameCode } = await api(`/games/${code}/join`, {
+        const data = await api(`/games/${code}/join`, {
           method: 'POST', body: { name }
         });
-        state.gameCode = gameCode;
-        state.playerId = playerId;
-        document.getElementById('waitGameCode').textContent = gameCode;
+        state.gameCode = data.gameCode;
+        state.playerId = data.playerId;
+        if (data.rejoined) {
+          // Check if game already started — go straight to role screen
+          const roleData = await api(`/games/${data.gameCode}/role/${data.playerId}`);
+          if (roleData.role) {
+            renderPlayerRole(roleData);
+            showScreen('playerRole');
+            pollPlayerRole();
+            return;
+          }
+        }
+        document.getElementById('waitGameCode').textContent = data.gameCode;
         showScreen('playerWaiting');
         pollPlayerStatus();
       } catch (e) {
@@ -226,11 +238,28 @@
       const count = document.getElementById('playerCount');
       const btn = document.getElementById('startBtn');
       count.textContent = game.players.length;
-      list.innerHTML = game.players.map(p => `<li>${p.name}</li>`).join('');
+      list.innerHTML = game.players.map(p => `
+        <li onclick="kickPlayer('${p.id}', '${p.name}')">
+          <span>${p.name}</span>
+          <span style="color:#666;font-size:0.8rem">tap to remove</span>
+        </li>
+      `).join('');
       if (game.players.length >= 4) {
         btn.disabled = false;
         btn.textContent = 'Start Game';
+      } else {
+        btn.disabled = true;
+        btn.textContent = 'Need at least 4 players';
       }
+    }
+
+    async function kickPlayer(playerId, name) {
+      if (!confirm(`Remove ${name} from the game?`)) return;
+      try {
+        await api(`/games/${state.gameCode}/players/${playerId}`, { method: 'DELETE' });
+        const game = await api(`/games/${state.gameCode}?mod=true`);
+        renderLobby(game);
+      } catch (e) { alert(e.message); }
     }
 
     async function startGame() {
@@ -246,15 +275,29 @@
       }
     }
 
+    let pressTimer = null;
     function renderModGame(game) {
       document.getElementById('modGameCode').textContent = game.code;
       const list = document.getElementById('modPlayers');
       list.innerHTML = game.players.map(p => `
-        <li class="${p.alive ? '' : 'dead'}" onclick="toggleEliminate('${p.id}')">
+        <li class="${p.alive ? '' : 'dead'}"
+            onclick="toggleEliminate('${p.id}')"
+            onpointerdown="pressTimer = setTimeout(() => kickPlayerInGame('${p.id}', '${p.name}'), 800)"
+            onpointerup="clearTimeout(pressTimer)"
+            onpointerleave="clearTimeout(pressTimer)">
           <span>${p.name}</span>
           <span class="role-badge role-${p.role}">${p.role}</span>
         </li>
       `).join('');
+    }
+
+    async function kickPlayerInGame(playerId, name) {
+      if (!confirm(`Remove ${name} from the game?`)) return;
+      try {
+        await api(`/games/${state.gameCode}/players/${playerId}`, { method: 'DELETE' });
+        const game = await api(`/games/${state.gameCode}?mod=true`);
+        renderModGame(game);
+      } catch (e) { alert(e.message); }
     }
 
     function pollModGame() {
@@ -305,7 +348,13 @@
             showScreen('playerRole');
             pollPlayerRole();
           }
-        } catch (e) {}
+        } catch (e) {
+            if (e.message === 'Player not found') {
+              clearInterval(pollTimer);
+              alert('You were removed from the game. Rejoin with the same name.');
+              showScreen('home');
+            }
+          }
       }, 2000);
     }
 
@@ -333,7 +382,13 @@
             return;
           }
           renderPlayerRole(data);
-        } catch (e) {}
+        } catch (e) {
+            if (e.message === 'Player not found') {
+              clearInterval(pollTimer);
+              alert('You were removed from the game. Rejoin with the same name.');
+              showScreen('home');
+            }
+          }
       }, 3000);
     }
   </script>

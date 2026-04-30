@@ -53,15 +53,17 @@ app.post('/api/games', (req, res) => {
 app.post('/api/games/:code/join', (req, res) => {
   const game = games[req.params.code.toUpperCase()];
   if (!game) return res.status(404).json({ error: 'Game not found' });
-  if (game.started) return res.status(400).json({ error: 'Game already started' });
-
   const { name } = req.body;
   if (!name || !name.trim()) return res.status(400).json({ error: 'Name required' });
 
   const trimmed = name.trim();
-  if (game.players.find(p => p.name.toLowerCase() === trimmed.toLowerCase())) {
-    return res.status(400).json({ error: 'Name already taken' });
+  const existing = game.players.find(p => p.name.toLowerCase() === trimmed.toLowerCase());
+  if (existing) {
+    // Allow rejoin — return their existing player ID
+    return res.json({ playerId: existing.id, gameCode: game.code, rejoined: true });
   }
+
+  if (game.started) return res.status(400).json({ error: 'Game already started — ask moderator to add you' });
 
   const id = Math.random().toString(36).substring(2, 10);
   const player = { id, name: trimmed, role: null, alive: true };
@@ -118,6 +120,18 @@ app.post('/api/games/:code/eliminate/:playerId', (req, res) => {
 
   player.alive = !player.alive; // Toggle so moderator can undo mistakes
   res.json({ name: player.name, alive: player.alive });
+});
+
+// Remove player
+app.delete('/api/games/:code/players/:playerId', (req, res) => {
+  const game = games[req.params.code.toUpperCase()];
+  if (!game) return res.status(404).json({ error: 'Game not found' });
+
+  const idx = game.players.findIndex(p => p.id === req.params.playerId);
+  if (idx === -1) return res.status(404).json({ error: 'Player not found' });
+
+  const removed = game.players.splice(idx, 1)[0];
+  res.json({ removed: removed.name });
 });
 
 // Reset game (keep players, reassign roles)
