@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Werewolf</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #1a1a2e;
+      color: #eee;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      padding: 20px;
+    }
+    .container { max-width: 420px; width: 100%; }
+    h1 { text-align: center; font-size: 2rem; margin: 20px 0 10px; }
+    .subtitle { text-align: center; color: #888; margin-bottom: 30px; font-size: 0.9rem; }
+    .screen { display: none; }
+    .screen.active { display: block; }
+    button {
+      width: 100%; padding: 14px; border: none; border-radius: 10px;
+      font-size: 1.1rem; font-weight: 600; cursor: pointer;
+      margin: 8px 0; transition: transform 0.1s;
+    }
+    button:active { transform: scale(0.97); }
+    .btn-primary { background: #e94560; color: white; }
+    .btn-secondary { background: #16213e; color: #eee; border: 2px solid #e94560; }
+    .btn-danger { background: #533; color: #e94560; }
+    .btn-small { width: auto; padding: 8px 16px; font-size: 0.85rem; }
+    input {
+      width: 100%; padding: 14px; border: 2px solid #333; border-radius: 10px;
+      background: #16213e; color: #eee; font-size: 1.1rem; margin: 8px 0;
+      text-align: center;
+    }
+    input::placeholder { color: #555; }
+    input.code-input { font-size: 1.8rem; letter-spacing: 0.5em; text-transform: uppercase; }
+    .game-code {
+      text-align: center; font-size: 3rem; font-weight: 800;
+      letter-spacing: 0.3em; color: #e94560; margin: 20px 0;
+    }
+    .player-list { list-style: none; margin: 16px 0; }
+    .player-list li {
+      padding: 12px 16px; background: #16213e; border-radius: 8px;
+      margin: 6px 0; display: flex; justify-content: space-between; align-items: center;
+      font-size: 1rem;
+    }
+    .player-list li.dead { opacity: 0.4; text-decoration: line-through; }
+    .role-badge {
+      padding: 3px 10px; border-radius: 20px; font-size: 0.75rem;
+      font-weight: 600; text-transform: uppercase;
+    }
+    .role-Werewolf { background: #e94560; color: white; }
+    .role-Seer { background: #7b68ee; color: white; }
+    .role-Doctor { background: #2ecc71; color: white; }
+    .role-Villager { background: #555; color: white; }
+    .role-reveal {
+      text-align: center; margin: 40px 0; padding: 30px;
+      background: #16213e; border-radius: 16px;
+    }
+    .role-reveal .role-name { font-size: 2.5rem; font-weight: 800; margin: 10px 0; }
+    .role-reveal .role-desc { color: #888; font-size: 0.95rem; margin-top: 8px; }
+    .role-reveal .player-name { color: #888; font-size: 1rem; }
+    .status-bar {
+      text-align: center; padding: 10px; background: #16213e;
+      border-radius: 8px; margin: 10px 0; font-size: 0.9rem; color: #888;
+    }
+    .eliminated-banner {
+      text-align: center; padding: 20px; background: #3a1a1a;
+      border-radius: 12px; margin: 20px 0; font-size: 1.2rem; color: #e94560;
+    }
+    .error { color: #e94560; text-align: center; margin: 8px 0; font-size: 0.9rem; }
+    .waiting { text-align: center; color: #888; margin: 20px 0; }
+    .waiting .dots::after { content: '...'; animation: dots 1.5s infinite; }
+    @keyframes dots {
+      0% { content: '.'; } 33% { content: '..'; } 66% { content: '...'; }
+    }
+    .player-count { text-align: center; color: #e94560; font-size: 1.2rem; margin: 10px 0; }
+    .actions { margin-top: 20px; }
+    .divider { text-align: center; color: #444; margin: 16px 0; font-size: 0.85rem; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- HOME -->
+    <div id="home" class="screen active">
+      <h1>Werewolf</h1>
+      <p class="subtitle">Social deduction party game</p>
+      <button class="btn-primary" onclick="createGame()">Create Game (Moderator)</button>
+      <div class="divider">- or -</div>
+      <input class="code-input" id="joinCode" placeholder="CODE" maxlength="4">
+      <input id="joinName" placeholder="Your name">
+      <button class="btn-secondary" onclick="joinGame()">Join Game</button>
+      <p id="homeError" class="error"></p>
+    </div>
+
+    <!-- MODERATOR LOBBY -->
+    <div id="modLobby" class="screen">
+      <h1>Lobby</h1>
+      <div class="game-code" id="lobbyCode"></div>
+      <p class="subtitle">Share this code with your friends</p>
+      <div class="player-count"><span id="playerCount">0</span> players joined</div>
+      <ul class="player-list" id="lobbyPlayers"></ul>
+      <div class="actions">
+        <button class="btn-primary" id="startBtn" onclick="startGame()" disabled>
+          Need at least 4 players
+        </button>
+      </div>
+    </div>
+
+    <!-- MODERATOR GAME -->
+    <div id="modGame" class="screen">
+      <h1>Game On</h1>
+      <div class="game-code" id="modGameCode" style="font-size:1.5rem"></div>
+      <ul class="player-list" id="modPlayers"></ul>
+      <div class="actions">
+        <button class="btn-danger" onclick="resetGame()">New Round (Keep Players)</button>
+      </div>
+    </div>
+
+    <!-- PLAYER WAITING -->
+    <div id="playerWaiting" class="screen">
+      <h1>Joined!</h1>
+      <div class="status-bar">Game: <strong id="waitGameCode"></strong></div>
+      <div class="waiting">
+        <p>Waiting for moderator to start<span class="dots"></span></p>
+      </div>
+    </div>
+
+    <!-- PLAYER ROLE -->
+    <div id="playerRole" class="screen">
+      <h1>Your Role</h1>
+      <div class="role-reveal">
+        <div class="player-name" id="roleName"></div>
+        <div class="role-name" id="roleTitle"></div>
+        <div class="role-desc" id="roleDesc"></div>
+      </div>
+      <div id="eliminatedBanner" class="eliminated-banner" style="display:none">
+        You have been eliminated
+      </div>
+      <div class="status-bar" id="playerStatusBar"></div>
+    </div>
+  </div>
+
+  <script>
+    let state = { gameCode: null, playerId: null, isMod: false };
+    let pollTimer = null;
+
+    const roleDescriptions = {
+      Werewolf: 'Each night, you and your fellow werewolves choose a victim. Stay hidden!',
+      Seer: 'Each night, point at a player. The moderator will tell you if they are a werewolf.',
+      Doctor: 'Each night, choose a player to protect. If werewolves target them, they survive.',
+      Villager: 'Find the werewolves through discussion and voting. Trust no one!'
+    };
+
+    async function api(path, opts = {}) {
+      const res = await fetch('/api' + path, {
+        headers: { 'Content-Type': 'application/json' },
+        ...opts,
+        body: opts.body ? JSON.stringify(opts.body) : undefined
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Something went wrong');
+      return data;
+    }
+
+    function showScreen(id) {
+      document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+      document.getElementById(id).classList.add('active');
+    }
+
+    async function createGame() {
+      try {
+        const { code } = await api('/games', { method: 'POST' });
+        state.gameCode = code;
+        state.isMod = true;
+        document.getElementById('lobbyCode').textContent = code;
+        showScreen('modLobby');
+        pollLobby();
+      } catch (e) {
+        document.getElementById('homeError').textContent = e.message;
+      }
+    }
+
+    async function joinGame() {
+      const code = document.getElementById('joinCode').value.trim().toUpperCase();
+      const name = document.getElementById('joinName').value.trim();
+      if (!code || !name) {
+        document.getElementById('homeError').textContent = 'Enter code and name';
+        return;
+      }
+      try {
+        const { playerId, gameCode } = await api(`/games/${code}/join`, {
+          method: 'POST', body: { name }
+        });
+        state.gameCode = gameCode;
+        state.playerId = playerId;
+        document.getElementById('waitGameCode').textContent = gameCode;
+        showScreen('playerWaiting');
+        pollPlayerStatus();
+      } catch (e) {
+        document.getElementById('homeError').textContent = e.message;
+      }
+    }
+
+    function pollLobby() {
+      clearInterval(pollTimer);
+      pollTimer = setInterval(async () => {
+        try {
+          const game = await api(`/games/${state.gameCode}?mod=true`);
+          renderLobby(game);
+          if (game.started) {
+            clearInterval(pollTimer);
+            renderModGame(game);
+            showScreen('modGame');
+            pollModGame();
+          }
+        } catch (e) {}
+      }, 2000);
+    }
+
+    function renderLobby(game) {
+      const list = document.getElementById('lobbyPlayers');
+      const count = document.getElementById('playerCount');
+      const btn = document.getElementById('startBtn');
+      count.textContent = game.players.length;
+      list.innerHTML = game.players.map(p => `<li>${p.name}</li>`).join('');
+      if (game.players.length >= 4) {
+        btn.disabled = false;
+        btn.textContent = 'Start Game';
+      }
+    }
+
+    async function startGame() {
+      try {
+        await api(`/games/${state.gameCode}/start`, { method: 'POST' });
+        clearInterval(pollTimer);
+        const game = await api(`/games/${state.gameCode}?mod=true`);
+        renderModGame(game);
+        showScreen('modGame');
+        pollModGame();
+      } catch (e) {
+        alert(e.message);
+      }
+    }
+
+    function renderModGame(game) {
+      document.getElementById('modGameCode').textContent = game.code;
+      const list = document.getElementById('modPlayers');
+      list.innerHTML = game.players.map(p => `
+        <li class="${p.alive ? '' : 'dead'}" onclick="toggleEliminate('${p.id}')">
+          <span>${p.name}</span>
+          <span class="role-badge role-${p.role}">${p.role}</span>
+        </li>
+      `).join('');
+    }
+
+    function pollModGame() {
+      clearInterval(pollTimer);
+      pollTimer = setInterval(async () => {
+        try {
+          const game = await api(`/games/${state.gameCode}?mod=true`);
+          if (!game.started) {
+            clearInterval(pollTimer);
+            renderLobby(game);
+            showScreen('modLobby');
+            pollLobby();
+            return;
+          }
+          renderModGame(game);
+        } catch (e) {}
+      }, 3000);
+    }
+
+    async function toggleEliminate(playerId) {
+      try {
+        await api(`/games/${state.gameCode}/eliminate/${playerId}`, { method: 'POST' });
+        const game = await api(`/games/${state.gameCode}?mod=true`);
+        renderModGame(game);
+      } catch (e) { alert(e.message); }
+    }
+
+    async function resetGame() {
+      if (!confirm('Start a new round? Roles will be reassigned.')) return;
+      try {
+        await api(`/games/${state.gameCode}/reset`, { method: 'POST' });
+        const game = await api(`/games/${state.gameCode}?mod=true`);
+        renderLobby(game);
+        showScreen('modLobby');
+        clearInterval(pollTimer);
+        pollLobby();
+      } catch (e) { alert(e.message); }
+    }
+
+    function pollPlayerStatus() {
+      clearInterval(pollTimer);
+      pollTimer = setInterval(async () => {
+        try {
+          const data = await api(`/games/${state.gameCode}/role/${state.playerId}`);
+          if (data.role) {
+            clearInterval(pollTimer);
+            renderPlayerRole(data);
+            showScreen('playerRole');
+            pollPlayerRole();
+          }
+        } catch (e) {}
+      }, 2000);
+    }
+
+    function renderPlayerRole(data) {
+      document.getElementById('roleName').textContent = data.name;
+      const title = document.getElementById('roleTitle');
+      title.textContent = data.role;
+      title.className = 'role-name';
+      title.style.color = { Werewolf: '#e94560', Seer: '#7b68ee', Doctor: '#2ecc71', Villager: '#aaa' }[data.role];
+      document.getElementById('roleDesc').textContent = roleDescriptions[data.role] || '';
+      document.getElementById('eliminatedBanner').style.display = data.alive ? 'none' : 'block';
+    }
+
+    function pollPlayerRole() {
+      clearInterval(pollTimer);
+      pollTimer = setInterval(async () => {
+        try {
+          const data = await api(`/games/${state.gameCode}/role/${state.playerId}`);
+          if (!data.role) {
+            // Game was reset
+            document.getElementById('waitGameCode').textContent = state.gameCode;
+            showScreen('playerWaiting');
+            clearInterval(pollTimer);
+            pollPlayerStatus();
+            return;
+          }
+          renderPlayerRole(data);
+        } catch (e) {}
+      }, 3000);
+    }
+  </script>
+</body>
+</html>
