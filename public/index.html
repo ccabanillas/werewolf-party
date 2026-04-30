@@ -17,6 +17,7 @@
     }
     .container { max-width: 420px; width: 100%; }
     h1 { text-align: center; font-size: 2rem; margin: 20px 0 10px; }
+    .kcl-logo { display: block; margin: 10px auto; width: 80px; height: 80px; border-radius: 16px; }
     .subtitle { text-align: center; color: #888; margin-bottom: 30px; font-size: 0.9rem; }
     .screen { display: none; }
     .screen.active { display: block; }
@@ -114,8 +115,9 @@
   <div class="container">
     <!-- HOME -->
     <div id="home" class="screen active">
+      <img src="https://prod-cdn-thekrazycouponlady.imgix.net/assets/kcl-logo.png" alt="KCL" class="kcl-logo">
       <h1>Werewolf</h1>
-      <p class="subtitle">Social deduction party game</p>
+      <p class="subtitle">KCL Party Edition</p>
       <button class="btn-primary" onclick="createGame()">Create Game (Moderator)</button>
       <div class="divider">- or -</div>
       <input class="code-input" id="joinCode" placeholder="CODE" maxlength="4" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false">
