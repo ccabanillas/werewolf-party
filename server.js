@@ -16,24 +16,34 @@ function generateCode() {
   return code;
 }
 
-function assignRoles(playerCount) {
+const AVAILABLE_ROLES = {
+  Werewolf:  { team: 'evil',    desc: 'Kills a villager each night' },
+  Villager:  { team: 'good',    desc: 'Find and eliminate the werewolves' },
+  Seer:      { team: 'good',    desc: 'Inspects one player per night' },
+  Doctor:    { team: 'good',    desc: 'Protects one player per night' }
+};
+
+function buildRoles(roleCounts, playerCount) {
   const roles = [];
-  if (playerCount <= 6) {
-    roles.push('Werewolf', 'Seer', 'Doctor');
-    while (roles.length < playerCount) roles.push('Villager');
-  } else if (playerCount <= 9) {
-    roles.push('Werewolf', 'Werewolf', 'Seer', 'Doctor');
-    while (roles.length < playerCount) roles.push('Villager');
-  } else {
-    roles.push('Werewolf', 'Werewolf', 'Werewolf', 'Seer', 'Doctor');
-    while (roles.length < playerCount) roles.push('Villager');
+  for (const [role, count] of Object.entries(roleCounts)) {
+    if (!AVAILABLE_ROLES[role]) continue;
+    for (let i = 0; i < count; i++) roles.push(role);
   }
+  // Fill remaining with Villager
+  while (roles.length < playerCount) roles.push('Villager');
   // Shuffle
   for (let i = roles.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [roles[i], roles[j]] = [roles[j], roles[i]];
   }
   return roles;
+}
+
+function defaultRoles(playerCount) {
+  const counts = { Werewolf: 1, Seer: 1, Doctor: 1, Villager: 0 };
+  if (playerCount >= 7) counts.Werewolf = 2;
+  if (playerCount >= 10) counts.Werewolf = 3;
+  return counts;
 }
 
 // Create game
@@ -71,6 +81,11 @@ app.post('/api/games/:code/join', (req, res) => {
   res.json({ playerId: id, gameCode: game.code });
 });
 
+// Get available roles
+app.get('/api/roles', (req, res) => {
+  res.json(AVAILABLE_ROLES);
+});
+
 // Start game (assign roles)
 app.post('/api/games/:code/start', (req, res) => {
   const game = games[req.params.code.toUpperCase()];
@@ -78,7 +93,19 @@ app.post('/api/games/:code/start', (req, res) => {
   if (game.started) return res.status(400).json({ error: 'Game already started' });
   if (game.players.length < 4) return res.status(400).json({ error: 'Need at least 4 players' });
 
-  const roles = assignRoles(game.players.length);
+  const roleCounts = req.body.roles || defaultRoles(game.players.length);
+  const totalAssigned = Object.values(roleCounts).reduce((s, n) => s + n, 0);
+  if (totalAssigned > game.players.length) {
+    return res.status(400).json({ error: `Too many roles (${totalAssigned}) for ${game.players.length} players` });
+  }
+
+  // Must have at least 1 werewolf
+  const wwCount = (roleCounts.Werewolf || 0) + (roleCounts.Drunk || 0);
+  if (wwCount < 1) {
+    return res.status(400).json({ error: 'Need at least 1 Werewolf' });
+  }
+
+  const roles = buildRoles(roleCounts, game.players.length);
   game.players.forEach((p, i) => { p.role = roles[i]; });
   game.started = true;
   res.json({ ok: true });

@@ -80,6 +80,29 @@
     .player-count { text-align: center; color: #e94560; font-size: 1.2rem; margin: 10px 0; }
     .actions { margin-top: 20px; }
     .divider { text-align: center; color: #444; margin: 16px 0; font-size: 0.85rem; }
+    .role-picker { margin: 16px 0; }
+    .role-picker h2 { font-size: 1.1rem; margin-bottom: 10px; text-align: center; }
+    .role-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 14px; background: #16213e; border-radius: 8px; margin: 6px 0;
+    }
+    .role-row .role-info { flex: 1; }
+    .role-row .role-label { font-weight: 600; font-size: 1rem; }
+    .role-row .role-team { font-size: 0.75rem; color: #666; }
+    .role-controls { display: flex; align-items: center; gap: 12px; }
+    .role-controls button {
+      width: 36px; height: 36px; padding: 0; margin: 0; border-radius: 50%;
+      font-size: 1.2rem; font-weight: 700; display: flex; align-items: center;
+      justify-content: center; background: #2a2a4e; color: #eee; border: 1px solid #444;
+    }
+    .role-controls button:active { background: #e94560; }
+    .role-controls .count { font-size: 1.3rem; font-weight: 700; min-width: 24px; text-align: center; }
+    .role-total {
+      text-align: center; margin: 10px 0; font-size: 0.9rem; padding: 8px;
+      border-radius: 8px;
+    }
+    .role-total.match { color: #2ecc71; background: #1a2e1a; }
+    .role-total.mismatch { color: #e94560; background: #2e1a1a; }
   </style>
 </head>
 <body>
@@ -103,12 +126,17 @@
       <p class="subtitle">Share this code with your friends</p>
       <div class="player-count"><span id="playerCount">0</span> players joined</div>
       <ul class="player-list" id="lobbyPlayers"></ul>
+      <div class="divider">Tap a player to remove them</div>
+      <div class="role-picker">
+        <h2>Roles</h2>
+        <div id="roleRows"></div>
+        <div class="role-total" id="roleTotal"></div>
+      </div>
       <div class="actions">
         <button class="btn-primary" id="startBtn" onclick="startGame()" disabled>
           Need at least 4 players
         </button>
       </div>
-      <div class="divider">Tap a player to remove them</div>
     </div>
 
     <!-- MODERATOR GAME -->
@@ -149,6 +177,8 @@
   <script>
     let state = { gameCode: null, playerId: null, isMod: false };
     let pollTimer = null;
+    let roleCounts = { Werewolf: 1, Seer: 1, Doctor: 1, Villager: 0 };
+    let currentPlayerCount = 0;
 
     const roleDescriptions = {
       Werewolf: 'Each night, you and your fellow werewolves choose a victim. Stay hidden!',
@@ -156,6 +186,8 @@
       Doctor: 'Each night, choose a player to protect. If werewolves target them, they survive.',
       Villager: 'Find the werewolves through discussion and voting. Trust no one!'
     };
+
+    const roleColors = { Werewolf: '#e94560', Seer: '#7b68ee', Doctor: '#2ecc71', Villager: '#888' };
 
     async function api(path, opts = {}) {
       const res = await fetch('/api' + path, {
@@ -237,19 +269,82 @@
       const list = document.getElementById('lobbyPlayers');
       const count = document.getElementById('playerCount');
       const btn = document.getElementById('startBtn');
-      count.textContent = game.players.length;
+      currentPlayerCount = game.players.length;
+      count.textContent = currentPlayerCount;
       list.innerHTML = game.players.map(p => `
         <li onclick="kickPlayer('${p.id}', '${p.name}')">
           <span>${p.name}</span>
           <span style="color:#666;font-size:0.8rem">tap to remove</span>
         </li>
       `).join('');
-      if (game.players.length >= 4) {
-        btn.disabled = false;
-        btn.textContent = 'Start Game';
+      renderRolePicker();
+      updateStartButton();
+    }
+
+    function renderRolePicker() {
+      const container = document.getElementById('roleRows');
+      const roles = ['Werewolf', 'Seer', 'Doctor', 'Villager'];
+      container.innerHTML = roles.map(role => `
+        <div class="role-row">
+          <div class="role-info">
+            <span class="role-label" style="color:${roleColors[role]}">${role}</span>
+            <div class="role-team">${roleDescriptions[role]}</div>
+          </div>
+          <div class="role-controls">
+            <button onclick="adjustRole('${role}', -1)">-</button>
+            <span class="count">${roleCounts[role] || 0}</span>
+            <button onclick="adjustRole('${role}', 1)">+</button>
+          </div>
+        </div>
+      `).join('');
+      updateRoleTotal();
+    }
+
+    function adjustRole(role, delta) {
+      const current = roleCounts[role] || 0;
+      const newVal = current + delta;
+      if (newVal < 0) return;
+      if (role === 'Werewolf' && newVal < 1) return;
+      roleCounts[role] = newVal;
+      renderRolePicker();
+      updateStartButton();
+    }
+
+    function getRoleTotal() {
+      return Object.values(roleCounts).reduce((s, n) => s + n, 0);
+    }
+
+    function updateRoleTotal() {
+      const total = getRoleTotal();
+      const el = document.getElementById('roleTotal');
+      const remaining = currentPlayerCount - total;
+      if (currentPlayerCount === 0) {
+        el.textContent = `${total} roles configured`;
+        el.className = 'role-total';
+      } else if (remaining > 0) {
+        el.textContent = `${total} of ${currentPlayerCount} assigned (${remaining} will be Villager)`;
+        el.className = 'role-total match';
+      } else if (remaining === 0) {
+        el.textContent = `All ${currentPlayerCount} roles assigned`;
+        el.className = 'role-total match';
       } else {
+        el.textContent = `Too many roles! ${total} assigned for ${currentPlayerCount} players`;
+        el.className = 'role-total mismatch';
+      }
+    }
+
+    function updateStartButton() {
+      const btn = document.getElementById('startBtn');
+      const total = getRoleTotal();
+      if (currentPlayerCount < 4) {
         btn.disabled = true;
         btn.textContent = 'Need at least 4 players';
+      } else if (total > currentPlayerCount) {
+        btn.disabled = true;
+        btn.textContent = 'Too many roles assigned';
+      } else {
+        btn.disabled = false;
+        btn.textContent = 'Start Game';
       }
     }
 
@@ -264,7 +359,7 @@
 
     async function startGame() {
       try {
-        await api(`/games/${state.gameCode}/start`, { method: 'POST' });
+        await api(`/games/${state.gameCode}/start`, { method: 'POST', body: { roles: roleCounts } });
         clearInterval(pollTimer);
         const game = await api(`/games/${state.gameCode}?mod=true`);
         renderModGame(game);
@@ -363,7 +458,7 @@
       const title = document.getElementById('roleTitle');
       title.textContent = data.role;
       title.className = 'role-name';
-      title.style.color = { Werewolf: '#e94560', Seer: '#7b68ee', Doctor: '#2ecc71', Villager: '#aaa' }[data.role];
+      title.style.color = roleColors[data.role] || '#aaa';
       document.getElementById('roleDesc').textContent = roleDescriptions[data.role] || '';
       document.getElementById('eliminatedBanner').style.display = data.alive ? 'none' : 'block';
     }
