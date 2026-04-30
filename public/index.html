@@ -90,8 +90,8 @@
       <p class="subtitle">Social deduction party game</p>
       <button class="btn-primary" onclick="createGame()">Create Game (Moderator)</button>
       <div class="divider">- or -</div>
-      <input class="code-input" id="joinCode" placeholder="CODE" maxlength="4">
-      <input id="joinName" placeholder="Your name">
+      <input class="code-input" id="joinCode" placeholder="CODE" maxlength="4" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false">
+      <input id="joinName" placeholder="Your name" autocomplete="off">
       <button class="btn-secondary" onclick="joinGame()">Join Game</button>
       <p id="homeError" class="error"></p>
     </div>
@@ -185,7 +185,7 @@
     }
 
     async function joinGame() {
-      const code = document.getElementById('joinCode').value.trim().toUpperCase();
+      const code = document.getElementById('joinCode').value.replace(/[^a-zA-Z]/g, '').trim().toUpperCase();
       const name = document.getElementById('joinName').value.trim();
       if (!code || !name) {
         document.getElementById('homeError').textContent = 'Enter code and name';
