@@ -64,6 +64,7 @@
     .role-Villager { background: #555; color: white; }
     .role-Cupid { background: #e84393; color: white; }
     .role-Jester { background: #f39c12; color: white; }
+    .role-Little-Girl { background: #fdcb6e; color: #333; }
     .role-reveal {
       text-align: center; margin: 40px 0; padding: 30px;
       background: #16213e; border-radius: 16px;
@@ -271,10 +272,11 @@
       Witch: 'You have one heal potion and one kill potion for the entire game. Use them wisely!',
       Cupid: 'On the first night, choose two players to be lovers. If one dies, the other dies of heartbreak!',
       Jester: 'You win if the village votes to eliminate you. Act suspicious! Trick them all!',
+      'Little Girl': 'You may peek during the night phase — but if the werewolves catch you, you die!',
       Villager: 'Find the werewolves through discussion and voting. Trust no one!'
     };
 
-    const roleColors = { Werewolf: '#e94560', Seer: '#7b68ee', Witch: '#9b59b6', Cupid: '#e84393', Jester: '#f39c12', Villager: '#888' };
+    const roleColors = { Werewolf: '#e94560', Seer: '#7b68ee', Witch: '#9b59b6', Cupid: '#e84393', Jester: '#f39c12', 'Little Girl': '#fdcb6e', Villager: '#888' };
 
     const roleArt = {
       Werewolf: `
@@ -373,6 +375,23 @@
        /   |   \\
       o    |    o
     ~ fool them all ~`,
+      'Little Girl': `
+          _____
+         / . . \\
+        |  (_)  |
+         \\_____/
+          \\   /
+       .---+-+---.
+      /   /   \\   \\
+     /   /     \\   \\
+    |   |       |   |
+    |   |  ___  |   |
+     \\   \\/   \\/   /
+      \\     |     /
+       '----+----'
+           / \\
+          /   \\
+     ~ don't get caught ~`,
       Villager: `
           _____
          /     \\
@@ -488,7 +507,7 @@
 
     function renderRolePicker() {
       const container = document.getElementById('roleRows');
-      const roles = ['Werewolf', 'Seer', 'Witch', 'Cupid', 'Jester', 'Villager'];
+      const roles = ['Werewolf', 'Seer', 'Witch', 'Cupid', 'Jester', 'Little Girl', 'Villager'];
       container.innerHTML = roles.map(role => `
         <div class="role-row">
           <div class="role-info">
@@ -586,7 +605,7 @@
             onpointerup="clearTimeout(pressTimer)"
             onpointerleave="clearTimeout(pressTimer)">
           <span>${p.name}</span>
-          <span class="role-badge role-${p.role}">${p.role}</span>
+          <span class="role-badge role-${p.role.replace(/ /g, '-')}">${p.role}</span>
         </li>
       `).join('');
     }

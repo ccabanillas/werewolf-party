@@ -22,7 +22,8 @@ const AVAILABLE_ROLES = {
   Seer:      { team: 'good',    desc: 'Inspects one player per night' },
   Witch:     { team: 'good',    desc: 'One heal potion + one kill potion for the whole game' },
   Cupid:     { team: 'good',    desc: 'Links two lovers on night one — if one dies, both die' },
-  Jester:    { team: 'solo',    desc: 'Wins if the village votes to eliminate them' }
+  Jester:    { team: 'solo',    desc: 'Wins if the village votes to eliminate them' },
+  'Little Girl': { team: 'good', desc: 'Can peek during the night — but if caught, the werewolves kill her' }
 };
 
 function buildRoles(roleCounts, playerCount) {
