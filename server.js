@@ -20,7 +20,7 @@ const AVAILABLE_ROLES = {
   Werewolf:  { team: 'evil',    desc: 'Kills a villager each night' },
   Villager:  { team: 'good',    desc: 'Find and eliminate the werewolves' },
   Seer:      { team: 'good',    desc: 'Inspects one player per night' },
-  Doctor:    { team: 'good',    desc: 'Protects one player per night' }
+  Witch:     { team: 'good',    desc: 'One heal potion + one kill potion for the whole game' }
 };
 
 function buildRoles(roleCounts, playerCount) {
@@ -40,7 +40,7 @@ function buildRoles(roleCounts, playerCount) {
 }
 
 function defaultRoles(playerCount) {
-  const counts = { Werewolf: 1, Seer: 1, Doctor: 1, Villager: 0 };
+  const counts = { Werewolf: 1, Seer: 1, Witch: 1, Villager: 0 };
   if (playerCount >= 7) counts.Werewolf = 2;
   if (playerCount >= 10) counts.Werewolf = 3;
   return counts;

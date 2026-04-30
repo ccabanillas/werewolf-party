@@ -54,7 +54,7 @@
     }
     .role-Werewolf { background: #e94560; color: white; }
     .role-Seer { background: #7b68ee; color: white; }
-    .role-Doctor { background: #2ecc71; color: white; }
+    .role-Witch { background: #9b59b6; color: white; }
     .role-Villager { background: #555; color: white; }
     .role-reveal {
       text-align: center; margin: 40px 0; padding: 30px;
@@ -183,17 +183,17 @@
   <script>
     let state = { gameCode: null, playerId: null, isMod: false };
     let pollTimer = null;
-    let roleCounts = { Werewolf: 1, Seer: 1, Doctor: 1, Villager: 0 };
+    let roleCounts = { Werewolf: 1, Seer: 1, Witch: 1, Villager: 0 };
     let currentPlayerCount = 0;
 
     const roleDescriptions = {
       Werewolf: 'Each night, you and your fellow werewolves choose a victim. Stay hidden!',
       Seer: 'Each night, point at a player. The moderator will tell you if they are a werewolf.',
-      Doctor: 'Each night, choose a player to protect. If werewolves target them, they survive.',
+      Witch: 'You have one heal potion and one kill potion for the entire game. Use them wisely!',
       Villager: 'Find the werewolves through discussion and voting. Trust no one!'
     };
 
-    const roleColors = { Werewolf: '#e94560', Seer: '#7b68ee', Doctor: '#2ecc71', Villager: '#888' };
+    const roleColors = { Werewolf: '#e94560', Seer: '#7b68ee', Witch: '#9b59b6', Villager: '#888' };
 
     const roleArt = {
       Werewolf: `
@@ -237,25 +237,27 @@
       '-.  \\    /  .-'
           '--\\/--'
        ~ all seeing ~`,
-      Doctor: `
-          _____
-         /     \\
-        | () () |
-         \\ ._. /
-          |   |
-      .---+---+---.
-     /    |   |    \\
-    /   __|___|__   \\
-    |  |   +   |  |
-    |  |  +++  |  |
-    |  |   +   |  |
-    |  |_______|  |
-    \\     | |     /
-     \\    | |    /
-      '---| |---'
-          | |
-         _| |_
-        |_____|`,
+      Witch: `
+            .
+           /|\\
+          /_|_\\
+         .' | '.
+        /   |   \\
+       /  .' '.  \\
+      /.-'     '-.\\
+     /             \\
+    '-------+-------'
+            |
+         ___|___
+        /       \\
+       /  ~   ~  \\
+      |  \\     /  |
+      |   \\   /   |
+       \\   \\ /   /
+        \\  _Y_  /
+         \\/|||\\/
+          |||||
+    ~ heal or kill ~`,
       Villager: `
           _____
          /     \\
@@ -371,7 +373,7 @@
 
     function renderRolePicker() {
       const container = document.getElementById('roleRows');
-      const roles = ['Werewolf', 'Seer', 'Doctor', 'Villager'];
+      const roles = ['Werewolf', 'Seer', 'Witch', 'Villager'];
       container.innerHTML = roles.map(role => `
         <div class="role-row">
           <div class="role-info">
